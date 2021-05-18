@@ -346,6 +346,45 @@ defmodule Ecto.SchemaTest do
     assert Ecto.primary_key!(sc) == [student_id: 1, course_ref_id: 2]
   end
 
+  defmodule AssocCompositeForeignKeys do
+    use Ecto.Schema
+
+    @foreign_key_type :integer
+    schema "composite_foreign_keys" do
+      belongs_to :assoc, SchemaCompositeKeys,
+        references: [:id, :second_id],
+        foreign_key: [:assoc_id, :assoc_second_id]
+      belongs_to :assoc_w_types, SchemaCompositeKeys,
+        references: [:id, :second_id],
+        foreign_key: [:assoc_w_types_id, :assoc_w_types_second_id],
+        type: [:id, :string]
+    end
+  end
+
+  test "belongs_to with composite primary keys" do
+    struct =
+      %Ecto.Association.BelongsTo{field: :assoc, owner: AssocCompositeForeignKeys, cardinality: :one,
+        related: SchemaCompositeKeys, owner_key: [:assoc_id, :assoc_second_id],
+        related_key: [:id, :second_id], queryable: SchemaCompositeKeys, on_replace: :raise}
+
+    assert AssocCompositeForeignKeys.__schema__(:association, :assoc) == struct
+    assert AssocCompositeForeignKeys.__schema__(:type, :assoc_id) == :integer
+    assert AssocCompositeForeignKeys.__schema__(:type, :assoc_second_id) == :integer
+    assert AssocCompositeForeignKeys.__changeset__().assoc == {:assoc, struct}
+  end
+
+  test "belongs_to with composite primary and custom types" do
+    struct =
+      %Ecto.Association.BelongsTo{field: :assoc_w_types, owner: AssocCompositeForeignKeys, cardinality: :one,
+        related: SchemaCompositeKeys, owner_key: [:assoc_w_types_id, :assoc_w_types_second_id],
+        related_key: [:id, :second_id], queryable: SchemaCompositeKeys, on_replace: :raise}
+
+    assert AssocCompositeForeignKeys.__schema__(:association, :assoc_w_types) == struct
+    assert AssocCompositeForeignKeys.__schema__(:type, :assoc_w_types_id) == :id
+    assert AssocCompositeForeignKeys.__schema__(:type, :assoc_w_types_second_id) == :string
+    assert AssocCompositeForeignKeys.__changeset__().assoc_w_types == {:assoc, struct}
+  end
+
   ## Errors
 
   test "field name clash" do

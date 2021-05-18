@@ -35,8 +35,8 @@ defmodule Ecto.Association do
                required(:cardinality) => :one | :many,
                required(:relationship) => :parent | :child,
                required(:owner) => atom,
-               required(:owner_key) => atom,
-               required(:field) => atom,
+               required(:owner_key) => atom | list(atom),
+               required(:field) => atom | list(atom),
                required(:unique) => boolean,
                optional(atom) => any}
 

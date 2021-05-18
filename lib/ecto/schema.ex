@@ -1959,7 +1959,10 @@ defmodule Ecto.Schema do
     end
 
     if Keyword.get(opts, :define_field, true) do
-      __field__(mod, opts[:foreign_key], foreign_key_type, opts)
+      foreign_keys_with_types = Enum.zip(List.wrap(opts[:foreign_key]), List.wrap(foreign_key_type))
+      for {fk, type} <- foreign_keys_with_types do
+        __field__(mod, fk, type, opts)
+      end
     end
 
     struct =
