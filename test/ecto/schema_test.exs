@@ -652,16 +652,38 @@ defmodule Ecto.SchemaTest do
     end
   end
 
+  defmodule Publication do
+    use Ecto.Schema
+
+    @primary_key false
+    schema "publication" do
+      field :id_1, :integer, primary_key: true
+      field :id_2, :string, primary_key: true
+      has_many :custom_assoc_schemas, CustomAssocSchema, references: [:id_1, :id_2],
+        foreign_key: [:publication_id_1, :publication_id_2]
+      has_one :custom_assoc_schema, CustomAssocSchema, references: [:id_1, :id_2],
+        foreign_key: [:pub_id_1, :pub_id_2]
+    end
+  end
+
   test "has_many options" do
     refl = CustomAssocSchema.__schema__(:association, :posts)
     assert :pk == refl.owner_key
     assert :fk == refl.related_key
+
+    refl = Publication.__schema__(:association, :custom_assoc_schemas)
+    assert [:id_1, :id_2] == refl.owner_key
+    assert [:publication_id_1, :publication_id_2] == refl.related_key
   end
 
   test "has_one options" do
     refl = CustomAssocSchema.__schema__(:association, :author)
     assert :pk == refl.owner_key
     assert :fk == refl.related_key
+
+    refl = Publication.__schema__(:association, :custom_assoc_schema)
+    assert [:id_1, :id_2] == refl.owner_key
+    assert [:pub_id_1, :pub_id_2] == refl.related_key
   end
 
   test "belongs_to options" do

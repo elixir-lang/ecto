@@ -67,11 +67,12 @@ defmodule Ecto.Association do
       or one/many to many
 
     * `:field` - tells the field in the owner struct where the
-      association should be stored
+      association should be stored, or a list of fields for composite keys
 
     * `:owner` - the owner module of the association
 
-    * `:owner_key` - the key in the owner with the association value
+    * `:owner_key` - the key in the owner with the association value, or a
+      list of keys for composite keys
 
     * `:relationship` - if the relationship to the specified schema is
       of a `:child` or a `:parent`
@@ -691,9 +692,11 @@ defmodule Ecto.Association.Has do
       |> Module.get_attribute(:primary_key)
       |> get_ref(opts[:references], name)
 
-    unless Module.get_attribute(module, :ecto_fields)[ref] do
-      raise ArgumentError, "schema does not have the field #{inspect ref} used by " <>
-        "association #{inspect name}, please set the :references option accordingly"
+    for ref <- List.wrap(ref) do
+      unless Module.get_attribute(module, :ecto_fields)[ref] do
+        raise ArgumentError, "schema does not have the field #{inspect ref} used by " <>
+          "association #{inspect name}, please set the :references option accordingly"
+      end
     end
 
     if opts[:through] do
