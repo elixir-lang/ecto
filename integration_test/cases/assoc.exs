@@ -10,6 +10,7 @@ defmodule Ecto.Integration.AssocTest do
   alias Ecto.Integration.PostUser
   alias Ecto.Integration.Comment
   alias Ecto.Integration.Permalink
+  alias Ecto.Integration.CompositePk
 
   test "has_many assoc" do
     p1 = TestRepo.insert!(%Post{title: "1"})
@@ -748,6 +749,12 @@ defmodule Ecto.Integration.AssocTest do
     assert tree.post.id
     assert length(tree.post.comments) == 2
     assert Enum.all?(tree.post.comments, & &1.id)
+  end
+
+  test "inserting struct with associations on composite keys" do
+    # creates nested belongs_to
+    %Post{composite: composite} =  TestRepo.insert!(%Post{title: "1", composite: %CompositePk{a: 1, b: 2, name: "name"}})
+    assert %CompositePk{a: 1, b: 2, name: "name"} = composite
   end
 
   test "inserting struct with empty associations" do

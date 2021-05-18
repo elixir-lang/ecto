@@ -152,6 +152,24 @@ defmodule Ecto.Integration.RepoTest do
     assert TestRepo.all(PostUserCompositePk) == []
   end
 
+  @tag :composite_pk
+  # TODO this needs a better name
+  test "insert, update and delete with associated composite pk #2" do
+    composite = TestRepo.insert!(%CompositePk{a: 1, b: 2, name: "name"})
+    post = TestRepo.insert!(%Post{title: "post title", composite: composite})
+
+    assert post.composite_a == 1
+    assert post.composite_b == 2
+    assert TestRepo.get_by!(CompositePk, [a: 1, b: 2]) == composite
+
+    post = post |> Ecto.Changeset.change(composite: nil) |> TestRepo.update!
+    assert is_nil(post.composite_a)
+    assert is_nil(post.composite_b)
+
+    TestRepo.delete!(post)
+    assert TestRepo.all(CompositePk) == [composite]
+  end
+
   @tag :invalid_prefix
   test "insert, update and delete with invalid prefix" do
     post = TestRepo.insert!(%Post{})

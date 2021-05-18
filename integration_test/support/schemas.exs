@@ -54,6 +54,8 @@ defmodule Ecto.Integration.Post do
     has_one :update_permalink, Ecto.Integration.Permalink, foreign_key: :post_id, on_delete: :delete_all, on_replace: :update
     has_many :comments_authors, through: [:comments, :author]
     belongs_to :author, Ecto.Integration.User
+    belongs_to :composite, Ecto.Integration.CompositePk,
+      foreign_key: [:composite_a, :composite_b], references: [:a, :b], type: [:integer, :integer], on_replace: :nilify
     many_to_many :users, Ecto.Integration.User,
       join_through: "posts_users", on_delete: :delete_all, on_replace: :delete
     many_to_many :ordered_users, Ecto.Integration.User, join_through: "posts_users", preload_order: [desc: :name]
@@ -291,6 +293,7 @@ defmodule Ecto.Integration.CompositePk do
     field :a, :integer, primary_key: true
     field :b, :integer, primary_key: true
     field :name, :string
+    has_many :posts, Ecto.Integration.Post, foreign_key: [:composite_a, :composite_b], references: [:a, :b]
   end
   def changeset(schema, params) do
     cast(schema, params, ~w(a b name)a)
