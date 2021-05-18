@@ -31,6 +31,7 @@ defmodule Ecto.Repo.BelongsToTest do
     schema "my_composite_assoc" do
       field :id_1, :id,  primary_key: true
       field :id_2, :string, primary_key: true
+      field :name, :string
       timestamps()
     end
   end
@@ -297,7 +298,23 @@ defmodule Ecto.Repo.BelongsToTest do
     assert assoc.updated_at
   end
 
-    test "inserting assocs on update preserving parent schema prefix" do
+  test "inserting assocs with composite keys on update" do
+    sample = %MyCompositeAssoc{id_1: 123, id_2: "xyz"}
+
+    changeset =
+      %MySchema{id: 1}
+      |> Ecto.Changeset.change
+      |> Ecto.Changeset.put_assoc(:composite_assoc, sample)
+    schema = TestRepo.update!(changeset)
+    assoc = schema.composite_assoc
+    assert assoc.id_1 == 123
+    assert assoc.id_2 == "xyz"
+    assert assoc.id_1 == schema.composite_id_1
+    assert assoc.id_2 == schema.composite_id_2
+    assert assoc.inserted_at
+  end
+
+  test "inserting assocs on update preserving parent schema prefix" do
     sample = %MyAssoc{x: "xyz"}
 
     changeset =
@@ -399,6 +416,26 @@ defmodule Ecto.Repo.BelongsToTest do
     assoc = schema.assoc
     assert assoc.id == 13
     assert assoc.x == "abc"
+    refute assoc.inserted_at
+    assert assoc.updated_at
+    refute_received {:delete, _} # Same assoc should not emit delete
+  end
+
+  test "changing assocs with composite keys on update" do
+    sample = %MyCompositeAssoc{id_1: 13, id_2: "xyz", name: "old name"}
+    sample = put_meta sample, state: :loaded
+
+    # Changing the assoc
+    sample_changeset = Ecto.Changeset.change(sample, name: "new name")
+    changeset =
+      %MySchema{id: 1, composite_assoc: sample}
+      |> Ecto.Changeset.change
+      |> Ecto.Changeset.put_assoc(:composite_assoc, sample_changeset)
+    schema = TestRepo.update!(changeset)
+    assoc = schema.composite_assoc
+    assert assoc.id_1 == 13
+    assert assoc.id_2 == "xyz"
+    assert assoc.name == "new name"
     refute assoc.inserted_at
     assert assoc.updated_at
     refute_received {:delete, _} # Same assoc should not emit delete
