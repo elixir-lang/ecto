@@ -24,6 +24,17 @@ defmodule Ecto.Repo.BelongsToTest do
     end
   end
 
+  defmodule MyCompositeAssoc do
+    use Ecto.Schema
+
+    @primary_key false
+    schema "my_composite_assoc" do
+      field :id_1, :id,  primary_key: true
+      field :id_2, :string, primary_key: true
+      timestamps()
+    end
+  end
+
   defmodule MySchema do
     use Ecto.Schema
 
@@ -32,6 +43,8 @@ defmodule Ecto.Repo.BelongsToTest do
       field :y, :binary
       belongs_to :assoc, MyAssoc, on_replace: :delete
       belongs_to :nilify_assoc, MyAssoc, on_replace: :nilify
+      belongs_to :composite_assoc, MyCompositeAssoc,
+        foreign_key: [:composite_id_1, :composite_id_2], references: [:id_1, :id_2], type: [:id, :string]
     end
   end
 
@@ -47,6 +60,22 @@ defmodule Ecto.Repo.BelongsToTest do
     assert assoc.id
     assert assoc.x == "xyz"
     assert assoc.id == schema.assoc_id
+    assert assoc.inserted_at
+  end
+
+  test "handles assocs with composite keys on insert" do
+    sample = %MyCompositeAssoc{id_1: 123, id_2: "xyz"}
+
+    changeset =
+      %MySchema{}
+      |> Ecto.Changeset.change
+      |> Ecto.Changeset.put_assoc(:composite_assoc, sample)
+    schema = TestRepo.insert!(changeset)
+    assoc = schema.composite_assoc
+    assert assoc.id_1 == 123
+    assert assoc.id_2 == "xyz"
+    assert assoc.id_1 == schema.composite_id_1
+    assert assoc.id_2 == schema.composite_id_2
     assert assoc.inserted_at
   end
 
@@ -101,6 +130,32 @@ defmodule Ecto.Repo.BelongsToTest do
       %MySchema{}
       |> Ecto.Changeset.change(assoc_id: 13)
       |> Ecto.Changeset.put_assoc(:assoc, %MyAssoc{x: "xyz"})
+    assert_raise ArgumentError, ~r"there is already a change setting its foreign key", fn ->
+      TestRepo.insert!(changeset)
+    end
+  end
+
+  test "checks dual changes to composite keys on insert" do
+    # values are the same
+    changeset =
+      %MySchema{}
+      |> Ecto.Changeset.change(composite_id_1: 13)
+      |> Ecto.Changeset.put_assoc(:composite_assoc, %MyCompositeAssoc{id_1: 13, id_2: "xyz"})
+    TestRepo.insert!(changeset)
+
+    # values are different
+    changeset =
+      %MySchema{}
+      |> Ecto.Changeset.change(composite_id_1: 13)
+      |> Ecto.Changeset.put_assoc(:composite_assoc, %MyCompositeAssoc{id_2: "xyz"})
+    assert_raise ArgumentError, ~r"there is already a change setting its foreign key", fn ->
+      TestRepo.insert!(changeset)
+    end
+
+    changeset =
+      %MySchema{}
+      |> Ecto.Changeset.change(composite_id_2: "abc")
+      |> Ecto.Changeset.put_assoc(:composite_assoc, %MyCompositeAssoc{id_1: 13})
     assert_raise ArgumentError, ~r"there is already a change setting its foreign key", fn ->
       TestRepo.insert!(changeset)
     end
