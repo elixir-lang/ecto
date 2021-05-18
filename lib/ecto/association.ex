@@ -36,7 +36,7 @@ defmodule Ecto.Association do
                required(:relationship) => :parent | :child,
                required(:owner) => atom,
                required(:owner_key) => atom | list(atom),
-               required(:field) => atom | list(atom),
+               required(:field) => atom,
                required(:unique) => boolean,
                optional(atom) => any}
 
@@ -67,7 +67,7 @@ defmodule Ecto.Association do
       or one/many to many
 
     * `:field` - tells the field in the owner struct where the
-      association should be stored, or a list of fields for composite keys
+      association should be stored
 
     * `:owner` - the owner module of the association
 
