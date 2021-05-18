@@ -637,16 +637,6 @@ defmodule Ecto.SchemaTest do
     assert inspect(reference) == "#Ecto.Association.NotLoaded<association :reference is not loaded>"
   end
 
-  defmodule SchemaWithCompositePrimaryKey do
-    use Ecto.Schema
-
-    @primary_key false
-    schema "composite" do
-      field :id_1, :integer, primary_key: true
-      field :id_2, :string, primary_key: true
-    end
-  end
-
   defmodule CustomAssocSchema do
     use Ecto.Schema
 
@@ -657,8 +647,8 @@ defmodule Ecto.SchemaTest do
       has_one :author, User, references: :pk, foreign_key: :fk
       belongs_to :permalink1, Permalink, references: :pk, foreign_key: :fk
       belongs_to :permalink2, Permalink, references: :pk, type: :string
-      belongs_to :composite, SchemaWithCompositePrimaryKey, references: [:id_1, :id_2],
-        foreign_key: [:composite_id_1, :composite_id_2], type: [:integer, :string]
+      belongs_to :publication, Publication, references: [:id_1, :id_2],
+        foreign_key: [:publication_id_1, :publication_id_2], type: [:integer, :string]
     end
   end
 
@@ -686,12 +676,12 @@ defmodule Ecto.SchemaTest do
     assert CustomAssocSchema.__schema__(:type, :fk) == :string
     assert CustomAssocSchema.__schema__(:type, :permalink2_id) == :string
 
-    refl = CustomAssocSchema.__schema__(:association, :composite)
-    assert [:composite_id_1, :composite_id_2] == refl.owner_key
+    refl = CustomAssocSchema.__schema__(:association, :publication)
+    assert [:publication_id_1, :publication_id_2] == refl.owner_key
     assert [:id_1, :id_2] == refl.related_key
 
-    assert CustomAssocSchema.__schema__(:type, :composite_id_1) == :integer
-    assert CustomAssocSchema.__schema__(:type, :composite_id_2) == :string
+    assert CustomAssocSchema.__schema__(:type, :publication_id_1) == :integer
+    assert CustomAssocSchema.__schema__(:type, :publication_id_2) == :string
   end
 
   test "has_* validates option" do
