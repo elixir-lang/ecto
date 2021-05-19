@@ -1951,10 +1951,10 @@ defmodule Ecto.Schema do
   def __belongs_to__(mod, name, queryable, opts) do
     check_options!(opts, @valid_belongs_to_options, "belongs_to/3")
 
-    opts = Keyword.put_new(opts, :foreign_key, :"#{name}_id")
+    opts = Keyword.update(opts, :foreign_key, :"#{name}_id", &List.wrap/1)
     foreign_key_type = opts[:type] || Module.get_attribute(mod, :foreign_key_type)
 
-    if name == Keyword.get(opts, :foreign_key) do
+    if [name] == Keyword.get(opts, :foreign_key) do
       raise ArgumentError, "foreign_key #{inspect name} must be distinct from corresponding association name"
     end
 
@@ -1965,6 +1965,7 @@ defmodule Ecto.Schema do
       else
         List.duplicate(foreign_key_type, length(foreign_keys))
       end
+
       for {fk, type} <- Enum.zip(foreign_keys, foreign_key_types) do
         __field__(mod, fk, type, opts)
       end

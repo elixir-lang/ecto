@@ -39,10 +39,12 @@ defmodule Ecto.Repo.Preloader do
   end
 
   def preload(structs, repo_name, preloads, opts) when is_list(structs) do
+    # IO.inspect([preloads: preloads, opts: opts], label: :preload__list)
     normalize_and_preload_each(structs, repo_name, preloads, opts[:take], opts)
   end
 
   def preload(struct, repo_name, preloads, opts) when is_map(struct) do
+    # IO.inspect([preloads: preloads, opts: opts], label: :preload__map)
     normalize_and_preload_each([struct], repo_name, preloads, opts[:take], opts) |> hd()
   end
 
@@ -108,6 +110,7 @@ defmodule Ecto.Repo.Preloader do
             [
               fn opts ->
                 fetch_query(fetch_ids, assoc, repo_name, query, prefix, related_key, take, opts)
+                # |> IO.inspect(label: :fetch_query)
               end
               | queries
             ]
@@ -170,10 +173,15 @@ defmodule Ecto.Repo.Preloader do
         acc
       struct, {fetch_ids, loaded_ids, loaded_structs} ->
         assert_struct!(module, struct)
-        %{^owner_key => id, ^field => value} = struct
+        %{^field => value} = struct
+        # TODO remove List.wrap
+        ids = owner_key |> List.wrap |> Enum.map(fn key -> 
+          %{^key => id} = struct
+          id
+        end)
         loaded? = Ecto.assoc_loaded?(value) and not force?
 
-        if loaded? and is_nil(id) and not Ecto.Changeset.Relation.empty?(assoc, value) do
+        if loaded? and Enum.any?(ids, &is_nil/1) and not Ecto.Changeset.Relation.empty?(assoc, value) do
           Logger.warn """
           association `#{field}` for `#{inspect(module)}` has a loaded value but \
           its association key `#{owner_key}` is nil. This usually means one of:
@@ -185,20 +193,22 @@ defmodule Ecto.Repo.Preloader do
           """
         end
 
+        binding() |> Keyword.take(~w/ids loaded? struct value field owner_key card/a) |> IO.inspect(label: :fetch_ids)
         cond do
           card == :one and loaded? ->
-            {fetch_ids, [id | loaded_ids], [value | loaded_structs]}
+            {fetch_ids, [ids | loaded_ids], [value | loaded_structs]}
           card == :many and loaded? ->
-            {fetch_ids, [{id, length(value)} | loaded_ids], value ++ loaded_structs}
-          is_nil(id) ->
+            {fetch_ids, [{ids, length(value)} | loaded_ids], value ++ loaded_structs}
+          Enum.any? ids, &is_nil/1 ->
             {fetch_ids, loaded_ids, loaded_structs}
           true ->
-            {[id | fetch_ids], loaded_ids, loaded_structs}
+            {[ids | fetch_ids], loaded_ids, loaded_structs}
         end
     end
   end
 
   defp fetch_query(ids, assoc, _repo_name, query, _prefix, related_key, _take, _opts) when is_function(query, 1) do
+    binding() |> Keyword.take(~w(query ids related_key)a) |> IO.inspect(label: :fetch_query_first)
     # Note we use an explicit sort because we don't want
     # to reorder based on the struct. Only the ID.
     ids
@@ -211,20 +221,21 @@ defmodule Ecto.Repo.Preloader do
 
   defp fetch_query(ids, %{cardinality: card} = assoc, repo_name, query, prefix, related_key, take, opts) do
     query = assoc.__struct__.assoc_query(assoc, query, Enum.uniq(ids))
-    field = related_key_to_field(query, related_key)
+    fields = related_key_to_fields(query, related_key)
 
     # Normalize query
     query = %{Ecto.Query.Planner.ensure_select(query, take || true) | prefix: prefix}
 
     # Add the related key to the query results
-    query = update_in query.select.expr, &{:{}, [], [field, &1]}
+    query = update_in query.select.expr, &{:{}, [], [fields, &1]}
+    binding() |> Keyword.take(~w(fields query ids related_key take)a) |> IO.inspect(label: :fetch_query_second)
 
     # If we are returning many results, we must sort by the key too
     query =
       case card do
         :many ->
           update_in query.order_bys, fn order_bys ->
-            [%Ecto.Query.QueryExpr{expr: preload_order(assoc, query, field), params: [],
+            [%Ecto.Query.QueryExpr{expr: preload_order(assoc, query, fields), params: [],
                                    file: __ENV__.file, line: __ENV__.line}|order_bys]
           end
         :one ->
@@ -288,6 +299,13 @@ defmodule Ecto.Repo.Preloader do
     [{:asc, related_field} | custom_order_by]
   end
 
+  defp related_key_to_fields(query, {pos, keys}) do
+    Enum.map keys, fn key ->
+      {{:., [], [{:&, [], [related_key_pos(query, pos)]}, key]}, [], []}
+    end
+  end
+
+  # TODO deprecated
   defp related_key_to_field(query, {pos, key, field_type}) do
     field_ast = related_key_to_field(query, {pos, key})
 
@@ -352,16 +370,19 @@ defmodule Ecto.Repo.Preloader do
 
   defp load_assoc({:assoc, assoc, ids}, struct) do
     %{field: field, owner_key: owner_key, cardinality: cardinality} = assoc
-    key = Map.fetch!(struct, owner_key)
+    binding() |> Keyword.take(~w(struct ids owner_key)a) |> IO.inspect(label: :load_assoc)
+    Enum.reduce owner_key, struct, fn owner_key_field, struct ->
+      key = Map.fetch!(struct, owner_key_field)
 
-    loaded =
-      case ids do
-        %{^key => value} -> value
-        _ when cardinality == :many -> []
-        _ -> nil
-      end
+      loaded =
+        case ids do
+          %{^key => value} -> value
+          _ when cardinality == :many -> []
+          _ -> nil
+        end
 
-    Map.put(struct, field, loaded)
+      Map.put(struct, field, loaded)
+    end
   end
 
   defp load_through({:through, assoc, throughs}, struct) do
