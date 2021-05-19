@@ -39,12 +39,10 @@ defmodule Ecto.Repo.Preloader do
   end
 
   def preload(structs, repo_name, preloads, opts) when is_list(structs) do
-    # IO.inspect([preloads: preloads, opts: opts], label: :preload__list)
     normalize_and_preload_each(structs, repo_name, preloads, opts[:take], opts)
   end
 
   def preload(struct, repo_name, preloads, opts) when is_map(struct) do
-    # IO.inspect([preloads: preloads, opts: opts], label: :preload__map)
     normalize_and_preload_each([struct], repo_name, preloads, opts[:take], opts) |> hd()
   end
 
@@ -110,7 +108,6 @@ defmodule Ecto.Repo.Preloader do
             [
               fn opts ->
                 fetch_query(fetch_ids, assoc, repo_name, query, prefix, related_key, take, opts)
-                # |> IO.inspect(label: :fetch_query)
               end
               | queries
             ]
@@ -193,7 +190,6 @@ defmodule Ecto.Repo.Preloader do
           """
         end
 
-        binding() |> Keyword.take(~w/ids loaded? struct value field owner_key card/a) |> IO.inspect(label: :fetch_ids)
         cond do
           card == :one and loaded? ->
             {fetch_ids, [ids | loaded_ids], [value | loaded_structs]}
@@ -208,7 +204,6 @@ defmodule Ecto.Repo.Preloader do
   end
 
   defp fetch_query(ids, assoc, _repo_name, query, _prefix, related_key, _take, _opts) when is_function(query, 1) do
-    binding() |> Keyword.take(~w(query ids related_key)a) |> IO.inspect(label: :fetch_query_first)
     # Note we use an explicit sort because we don't want
     # to reorder based on the struct. Only the ID.
     ids
@@ -228,7 +223,6 @@ defmodule Ecto.Repo.Preloader do
 
     # Add the related key to the query results
     query = update_in query.select.expr, &{:{}, [], [fields, &1]}
-    binding() |> Keyword.take(~w(fields query ids related_key take)a) |> IO.inspect(label: :fetch_query_second)
 
     # If we are returning many results, we must sort by the key too
     query =
@@ -370,7 +364,6 @@ defmodule Ecto.Repo.Preloader do
 
   defp load_assoc({:assoc, assoc, ids}, struct) do
     %{field: field, owner_key: owner_key, cardinality: cardinality} = assoc
-    binding() |> Keyword.take(~w(struct ids owner_key)a) |> IO.inspect(label: :load_assoc)
     Enum.reduce owner_key, struct, fn owner_key_field, struct ->
       key = Map.fetch!(struct, owner_key_field)
 
