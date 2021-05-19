@@ -810,16 +810,21 @@ defmodule Ecto.Association.Has do
     %{data: parent, repo: repo} = parent_changeset
     %{action: action, changes: changes} = changeset
 
-    {key, value} = parent_key(assoc, parent)
-    changeset = update_parent_key(changeset, action, key, value)
-    changeset = Ecto.Association.update_parent_prefix(changeset, parent)
+    parent_keys = parent_keys(assoc, parent)
+    changeset = Enum.reduce parent_keys, changeset, fn {key, value}, changeset ->
+      changeset = update_parent_key(changeset, action, key, value)
+      Ecto.Association.update_parent_prefix(changeset, parent)
+    end
 
     case apply(repo, action, [changeset, opts]) do
       {:ok, _} = ok ->
         if action == :delete, do: {:ok, nil}, else: ok
       {:error, changeset} ->
-        original = Map.get(changes, key)
-        {:error, put_in(changeset.changes[key], original)}
+        changeset = Enum.reduce parent_keys, changeset, fn {key, _}, changeset ->
+          original = Map.get(changes, key)
+          put_in(changeset.changes[key], original)
+        end
+        {:error, changeset}
     end
   end
 
@@ -828,11 +833,21 @@ defmodule Ecto.Association.Has do
   defp update_parent_key(changeset, _action, key, value),
     do: Ecto.Changeset.put_change(changeset, key, value)
 
-  defp parent_key(%{related_key: related_key}, nil) do
-    {related_key, nil}
+  defp parent_keys(%{related_key: related_keys}, nil) when is_list(related_keys) do
+    Enum.map related_keys, fn related_key -> {related_key, nil} end
   end
-  defp parent_key(%{owner_key: owner_key, related_key: related_key}, owner) do
-    {related_key, Map.get(owner, owner_key)}
+  defp parent_keys(%{related_key: related_key}, nil) do
+    [{related_key, nil}]
+  end
+  defp parent_keys(%{owner_key: owner_keys, related_key: related_keys}, owner) when is_list(owner_keys) and is_list(related_keys) do
+    owner_keys
+    |> Enum.zip(related_keys)
+    |> Enum.map(fn {owner_key, related_key} ->
+      {related_key, Map.get(owner, owner_key)}
+    end)
+  end
+  defp parent_keys(%{owner_key: owner_key, related_key: related_key}, owner) do
+    [{related_key, Map.get(owner, owner_key)}]
   end
 
   ## Relation callbacks

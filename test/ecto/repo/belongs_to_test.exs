@@ -32,6 +32,8 @@ defmodule Ecto.Repo.BelongsToTest do
       field :id_1, :id,  primary_key: true
       field :id_2, :string, primary_key: true
       field :name, :string
+      has_one :my_schema, MySchema,
+        foreign_key: [:composite_id_1, :composite_id_2], references: [:id_1, :id_2]
       timestamps()
     end
   end
