@@ -508,10 +508,15 @@ defmodule Ecto do
     refl = %{owner_key: owner_key} = Ecto.Association.association_from_schema!(schema, assoc)
 
     values =
-      Enum.uniq for(struct <- structs,
-        assert_struct!(schema, struct),
-        key = Map.fetch!(struct, owner_key),
-        do: key)
+      structs
+      |> Enum.filter(&assert_struct!(schema, &1))
+      |> Enum.map(fn struct ->
+        owner_key
+        # TODO remove List.wrap once all assocs use lists
+        |> List.wrap
+        |> Enum.map(&Map.fetch!(struct, &1))
+      end)
+      |> Enum.uniq
 
     case assocs do
       [] ->
